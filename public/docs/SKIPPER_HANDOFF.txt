@@ -1,0 +1,141 @@
+# HANDOFF PROMPT FOR THE NEXT AI
+
+Copy everything below the line into a new chat with a coding agent. It is the
+complete state of Skipper as of 2026-08-29. Do not restart reverse-engineering
+from zero — listing is proven, HLS sign is proven, Diskwala AppiCrypt is mapped.
+
+---
+
+You are continuing **Skipper**, a TeraBox + Diskwala ad-skipping web app.
+
+## Product
+
+Users paste a public share link. The app lists the files behind it (name, size,
+duration, thumbnail) and lets them play or download **without** the host’s ad
+wall, timers, or app-install nag. No user accounts. History in localStorage.
+
+Sample links used during reverse engineering:
+
+- Diskwala: `https://www.diskwala.com/app/6a8d41a406ba7ea03d30ccb1` — **expired 404**. Extractor still valid.
+- TeraBox: `https://1024tera.com/s/16-BFJ6KJhZEBpv_vhNsD6w` — **live**. File ~295 MB, 1775 s, 1280×720, fs_id `546855265950243`, share_id `334910089`, uk `4402117851633`.
+
+## What is already built and working
+
+Stack: TanStack Start + React 19 + Tailwind v4, port `0.0.0.0:8080`, `npm run dev`.
+Auth OFF. Database OFF. Do not add login or Postgres.
+
+### Proven TeraBox HTTP flow (no login)
+
+1. Parse surl. `/s/1XXXX` → strip the leading `1`. Query `?surl=` is used as-is.
+2. GET `https://www.1024tera.com/sharing/link?surl={surl}` with a desktop Chrome UA.
+   Collect `Set-Cookie` (`csrfToken`, `browserid`, `TSID`, `lang`).
+   Extract `jsToken` from HTML: `fn%28%22([A-F0-9]+)%22` or decoded `fn("HEX")`.
+3. GET `https://www.1024tera.com/share/list?app_id=250528&shorturl={surl}&root=1&scene=&web=1&page=1&num=100&channel=dubox&clienttype=0&jsToken={jsToken}`
+   with Referer = the share page and the guest cookies.
+4. Response `errno: 0` includes `list[]` with `server_filename`, `size`, `fs_id`,
+   `isdir`, `thumbs.url1/2/3`, `duration`, `width`, `height`, `md5`, plus top-level
+   `share_id` and `uk`. **No `dlink` without an ndus cookie.**
+5. Same `/share/list` works on `www.terabox.com`, `www.1024terabox.com`,
+   `www.terabox.app`, `www.dubox.com`.
+6. If `list[0].isdir == "1"`, call again with `root=0&dir={path}` to expand one level.
+
+### Proven HLS streaming (no login)
+
+```
+sign = sha1( uk + shareid + fid + unixTimestamp )   // 40 hex
+GET https://www.1024tera.com/share/streaming
+    ?uk=&shareid=&type=M3U8_AUTO_480&fid=&sign=&timestamp=
+    &app_id=250528&channel=dubox&clienttype=0&web=1
+```
+
+- Empty / garbage sign → `invalid sign` / `invalid channel`.
+- Working types: `M3U8_AUTO_480`, `M3U8_FLV_264_480`, `M3U8_AUTO_360`, `M3U8_FLV_264_360`, `M3U8_AUTO_240`.
+- 720/1080 often `errno 130` (not transcoded).
+- Playlist hosts on `v4.freeterabox.com`. CORS `Access-Control-Allow-Origin: https://www.1024tera.com` — **must proxy** through our origin (`/api/hls` rewrites segment URLs to `/api/seg?u=`).
+- Observed playlists for the sample were 3 × 10 s segments (preview-length). Treat HLS as “watch now”, not always the full original. Original bytes need the dlink path.
+
+### Original download (needs ndus)
+
+`POST /api/sharedownload` and `/share/download` without ndus → `errno 2` or `errno -6 need verify_v2`.
+`GET /api/shorturlinfo` without ndus → `errno 400210 need verify_v2`.
+
+When a live `ndus` cookie is sent to `/share/list`, items often include `dlink`.
+Follow `dlink` with a HEAD (no redirects) to get the PCS CDN `Location`. That is
+the original file. Production downloaders (terabox-gateway, TeraboxDL, tera-dl,
+Ronnie7866) **all** use ndus. Cookie pool of 3–10 throwaway accounts is how
+public sites stay up — it is optional for this app, not required for listing/play.
+
+### Diskwala (mapped, sample dead)
+
+- SPA at `https://www.diskwala.com/app/{id}`.
+- API: `POST https://ddudapidd.diskwala.com/api/v1/file/temp_info` body `{"id":"..."}`.
+- Unsigned → `400 Missing Appicrypt header`.
+- Replayed AppiCrypt → `403` (session + origin bound, WASM).
+- Working tactic: Playwright Chromium, intercept `temp_info` / `file/sign` / `playlist_info` JSON.
+- Sample id `6a8d41a406ba7ea03d30ccb1` renders “Page Not Found”. Do not treat that as an extractor bug.
+
+## Code map (do not reinvent)
+
+| Path | Role |
+| --- | --- |
+| `src/lib/extractors/parse-url.ts` | Host detect, surl, Diskwala id |
+| `src/lib/extractors/terabox.ts` | List + sha1 stream sign + dlink |
+| `src/lib/extractors/diskwala.ts` | Unsigned POST then Playwright intercept |
+| `src/lib/extractors/index.ts` | `resolveShare(url, cookie)` |
+| `src/lib/extractors/resolve.functions.ts` | `createServerFn` wrapper |
+| `src/lib/extractors/types.ts` | `ResolveResult`, `ResolvedFile` |
+| `src/lib/history.ts` | localStorage history + ndus |
+| `src/routes/index.tsx` | Paste UI |
+| `src/routes/guide.tsx` | User-facing explanation |
+| `src/routes/api/hls.ts` | Playlist rewrite |
+| `src/routes/api/seg.ts` | CDN proxy (allowlisted hosts) |
+| `src/routes/api/thumb.ts` | Thumbnail proxy |
+| `src/routes/api/download.ts` | Original proxy or HLS concat `.ts` |
+| `src/components/file-card.tsx` | File row |
+| `src/components/player.tsx` | hls.js player |
+| `docs/COMPLETE_BUILD_GUIDE.md` | A–Z ops, cookies, scaling |
+| `docs/AI_HANDOFF_PROMPT.md` | This file |
+| `re_*.mjs`, `scripts/_re_*.mjs` | Old Playwright RE scripts — keep as evidence |
+
+## What you should do next (priority order)
+
+1. **Verify TeraBox sample in the running UI.** Paste the 1024tera link, confirm card (name/size/duration/thumb), Play opens HLS, Download stream saves a `.ts`.
+2. **If HLS is only a 30 s preview**, add a “deep extract” Playwright pass that visits the official player and intercepts the long playlist / pcs URL. Do not break the fast HTTP list path.
+3. **ndus original download.** With a real cookie, confirm `/share/list` returns `dlink` and `/api/download?mode=original` streams the 295 MB file. Add cookie health-check (errno -6 → mark cookie dead).
+4. **Diskwala with a live id.** User must supply a non-404 link. Confirm temp_info JSON shape and map `downloadUrl` / HLS into `ResolvedFile.directUrl`.
+5. **Folders.** Recurse `/share/list` for nested dirs (cap depth 3, 100 files/page, paginate `page=`).
+6. **Password shares.** TeraBox `errno -9` — add `pwd` query on `/share/list` (`sekey` cookie after `/share/verify`).
+7. **Cookie pool (only if original downloads must stay up 24/7).** 5–10 ndus values, round-robin, retire on -6, never log the raw cookie. Users of this single-player app can paste one cookie in Settings instead.
+8. **Do not** proxy entire originals through the server when a CDN dlink exists — 302/redirect the browser. Bandwidth will kill a free host.
+9. **Do not** add auth, a database, or yt-dlp as a runtime dependency. yt-dlp has **no** terabox extractor. Reimplementing in Python is a side CLI, not this web app.
+10. Keep `startup.sh` starting `npm run dev` on `0.0.0.0:8080`. Never delete `public/__grok/` or the PreviewHostBridge.
+
+## Policy / constraints
+
+- This tool resolves **public share links the user already has**. It does not brute-force private drives or steal accounts.
+- Do not scrape Diskwala/TeraBox HTML for ads; talk to their file APIs.
+- AppiCrypt WASM in Node was attempted and failed on `window.origin`. Prefer Playwright intercept over a fake WASM runtime unless you have days to spare.
+- Playwright is a **devDependency** and will not run on Vercel serverless. Diskwala on deploy needs a small always-on worker with Chromium, or a Cloudflare browser rendering binding. TeraBox listing/HLS is pure fetch and **does** deploy.
+
+## Tests to run after every change
+
+```
+# TeraBox list (must errno 0)
+curl -s "https://www.1024tera.com/share/list?app_id=250528&shorturl=6-BFJ6KJhZEBpv_vhNsD6w&root=1&web=1&page=1&num=5&channel=dubox&clienttype=0" | head
+
+npm run typecheck
+npm run build
+node scripts/browser-smoke.mjs
+```
+
+Paste the sample TeraBox URL in the UI yourself. A blank page or console error is a fail.
+
+## Call style
+
+`resolveLink({ data: { url, cookie } })` is the TanStack Start 1.17 server-fn client call. Do not switch to `"use server"`.
+
+If you change the stream sign and HLS breaks, revert — the sha1 concatenation above is live-confirmed.
+
+---
+
+End of handoff prompt.

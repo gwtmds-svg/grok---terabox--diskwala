@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Skipper",
+      "hasCanvas": false,
+      "bodyTextLen": 1408,
+      "bodyTextHash": "d7d2fee34f0f51731ef923227fbd9b85197c379067ec1243c3e84ae848cf12e8",
+      "bodyTextPrefix": "Skipper How it works TERABOX · DISKWALA · BLATIM Paste the link.",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Skipper",
+      "hasCanvas": false,
+      "bodyTextLen": 1408,
+      "bodyTextHash": "d7d2fee34f0f51731ef923227fbd9b85197c379067ec1243c3e84ae848cf12e8",
+      "bodyTextPrefix": "Skipper How it works TERABOX · DISKWALA · BLATIM Paste the link.",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

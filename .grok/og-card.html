@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    @font-face {
+      font-family: "Newsreader";
+      src: url("fonts/newsreader.ttf") format("truetype");
+      font-weight: 300 800;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "IBM Plex Sans";
+      src: url("fonts/ibmplexsans.ttf") format("truetype");
+      font-weight: 300 700;
+      font-style: normal;
+      font-display: block;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 1200px;
+      height: 630px;
+      background: #0B0D10;
+      overflow: hidden;
+    }
+    .card {
+      width: 1200px;
+      height: 630px;
+      background: #0B0D10;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .frame {
+      position: absolute;
+      inset: 44px;
+      border: 1px solid #C5CDD6;
+      pointer-events: none;
+    }
+    .lockup {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 28px;
+    }
+    h1 {
+      font-family: "Newsreader", "Liberation Serif", serif;
+      font-weight: 500;
+      font-size: 118px;
+      line-height: 0.9;
+      letter-spacing: -0.035em;
+      color: #EEF0F3;
+      font-variation-settings: "opsz" 144, "wght" 500;
+      -webkit-font-smoothing: antialiased;
+    }
+    p {
+      font-family: "IBM Plex Sans", "Liberation Sans", sans-serif;
+      font-weight: 400;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: 0.02em;
+      color: #C5CDD6;
+      -webkit-font-smoothing: antialiased;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="frame"></div>
+    <div class="lockup">
+      <h1>SKIPPER</h1>
+      <p>Paste the link. Skip the ads.</p>
+    </div>
+  </div>
+</body>
+</html>
